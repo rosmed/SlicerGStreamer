@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>qSlicerGStreamerModuleWidget</class>
- <widget class="qSlicerAbstractModuleWidget" name="qSlicerGStreamerModuleWidget">
+ <widget class="qSlicerWidget" name="qSlicerGStreamerModuleWidget">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>600</height>
+    <width>332</width>
+    <height>634</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,89 +15,112 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="ctkCollapsibleButton" name="streamerNodeCollapsibleButton">
-     <property name="text">
-      <string>Parameters</string>
-     </property>
-     <layout class="QFormLayout" name="formLayout_3">
-      <item row="0" column="0">
-       <widget class="QLabel" name="streamerNodeLabel">
-        <property name="text">
-         <string>Current Streamer:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="qMRMLNodeComboBox" name="streamerNodeSelector">
-        <property name="nodeTypes">
-         <stringlist>
-          <string>vtkMRMLGStreamerStreamerNode</string>
-         </stringlist>
-        </property>
-        <property name="addEnabled">
-         <bool>true</bool>
-        </property>
-        <property name="removeEnabled">
-         <bool>true</bool>
-        </property>
-        <property name="noneEnabled">
-         <bool>true</bool>
-        </property>
-        <property name="renameEnabled">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="ctkCollapsibleButton" name="streamOutCollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="StreamOutCollapsibleButton">
      <property name="text">
       <string>Stream Out</string>
      </property>
-     <layout class="QFormLayout" name="formLayout">
-      <item row="0" column="0">
-       <widget class="QLabel" name="sourceLabel">
-        <property name="text">
-         <string>Source:</string>
-        </property>
-       </widget>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_StreamerOutSelect">
+        <item>
+         <widget class="qMRMLNodeComboBox" name="streamerNodeSelector">
+          <property name="nodeTypes">
+           <stringlist>
+            <string>vtkMRMLGStreamerStreamerNode</string>
+           </stringlist>
+          </property>
+          <property name="noneEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="addEnabled">
+           <bool>false</bool>
+          </property>
+          <property name="removeEnabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="addStreamerButton">
+          <property name="text">
+           <string>+</string>
+          </property>
+          <property name="maximumWidth">
+           <number>30</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="deleteStreamerButton">
+          <property name="text">
+           <string>Delete</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
-      <item row="0" column="1">
-       <widget class="qMRMLNodeComboBox" name="sourceNodeSelector">
-        <property name="nodeTypes">
-         <stringlist>
-          <string>vtkMRMLVolumeNode</string>
-          <string>vtkMRMLSliceNode</string>
-          <string>vtkMRMLViewNode</string>
-         </stringlist>
-        </property>
-        <property name="showHidden">
-         <bool>true</bool>
-        </property>
-        <property name="noneEnabled">
-         <bool>true</bool>
-        </property>
-        <property name="addEnabled">
-         <bool>false</bool>
-        </property>
-        <property name="removeEnabled">
-         <bool>false</bool>
-        </property>
-       </widget>
+      <item>
+       <layout class="QFormLayout" name="formLayout_Out">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_nameOut">
+          <property name="text">
+           <string>Name:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="nameOutLineEdit"/>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_source">
+          <property name="text">
+           <string>Source:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="qMRMLNodeComboBox" name="sourceNodeSelector">
+          <property name="nodeTypes">
+           <stringlist>
+            <string>vtkMRMLScalarVolumeNode</string>
+            <string>vtkMRMLSliceNode</string>
+            <string>vtkMRMLViewNode</string>
+           </stringlist>
+          </property>
+          <property name="showHidden">
+           <bool>true</bool>
+          </property>
+          <property name="noneEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="noneDisplay">
+           <string>Select source</string>
+          </property>
+          <property name="addEnabled">
+           <bool>false</bool>
+          </property>
+          <property name="removeEnabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_unixfd">
+          <property name="text">
+           <string>Unix FD Path:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="unixfdPathLineEdit">
+          <property name="placeholderText">
+           <string>/tmp/gstreamer-out</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="unixfdPathLabel">
-        <property name="text">
-         <string>Unix FD Path:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLineEdit" name="unixfdPathLineEdit"/>
-      </item>
-      <item row="2" column="1">
+      <item>
        <widget class="QPushButton" name="startStreamingButton">
         <property name="text">
          <string>Start Streaming</string>
@@ -111,50 +134,104 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="streamInCollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="StreamInCollapsibleButton">
      <property name="text">
       <string>Stream In</string>
      </property>
-     <layout class="QFormLayout" name="formLayout_2">
-      <item row="0" column="0">
-       <widget class="QLabel" name="sinkLabel">
-        <property name="text">
-         <string>Sink Volume:</string>
-        </property>
-       </widget>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_StreamerInSelect">
+        <item>
+         <widget class="qMRMLNodeComboBox" name="streamerInNodeSelector">
+          <property name="nodeTypes">
+           <stringlist>
+            <string>vtkMRMLGStreamerStreamerNode</string>
+           </stringlist>
+          </property>
+          <property name="noneEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="addEnabled">
+           <bool>false</bool>
+          </property>
+          <property name="removeEnabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="addStreamerInButton">
+          <property name="text">
+           <string>+</string>
+          </property>
+          <property name="maximumWidth">
+           <number>30</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="deleteStreamerInButton">
+          <property name="text">
+           <string>Delete</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
-      <item row="0" column="1">
-       <widget class="qMRMLNodeComboBox" name="sinkNodeSelector">
-        <property name="nodeTypes">
-         <stringlist>
-          <string>vtkMRMLStreamingVolumeNode</string>
-         </stringlist>
-        </property>
-        <property name="showHidden">
-         <bool>false</bool>
-        </property>
-        <property name="noneEnabled">
-         <bool>true</bool>
-        </property>
-        <property name="addEnabled">
-         <bool>true</bool>
-        </property>
-        <property name="removeEnabled">
-         <bool>false</bool>
-        </property>
-       </widget>
+      <item>
+       <layout class="QFormLayout" name="formLayout_In">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_nameIn">
+          <property name="text">
+           <string>Name:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="nameInLineEdit"/>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_sink">
+          <property name="text">
+           <string>Sink Volume:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="qMRMLNodeComboBox" name="sinkNodeSelector">
+          <property name="nodeTypes">
+           <stringlist>
+            <string>vtkMRMLScalarVolumeNode</string>
+           </stringlist>
+          </property>
+          <property name="noneEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="addEnabled">
+           <bool>false</bool>
+          </property>
+          <property name="removeEnabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_unixfd_in">
+          <property name="text">
+           <string>Unix FD Path:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="unixfdInPathLineEdit">
+          <property name="placeholderText">
+           <string>/tmp/gstreamer-in</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="unixfdInPathLabel">
-        <property name="text">
-         <string>Unix FD Path:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLineEdit" name="unixfdInPathLineEdit"/>
-      </item>
-      <item row="2" column="1">
+      <item>
        <widget class="QPushButton" name="startStreamingInButton">
         <property name="text">
          <string>Start Receiving</string>
@@ -189,9 +266,9 @@
    <header>qMRMLNodeComboBox.h</header>
   </customwidget>
   <customwidget>
-   <class>qSlicerAbstractModuleWidget</class>
+   <class>qSlicerWidget</class>
    <extends>QWidget</extends>
-   <header>qSlicerAbstractModuleWidget.h</header>
+   <header>qSlicerWidget.h</header>
   </customwidget>
   <customwidget>
    <class>ctkCollapsibleButton</class>

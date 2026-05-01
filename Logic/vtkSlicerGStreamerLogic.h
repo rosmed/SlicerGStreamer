@@ -1,14 +1,15 @@
-
 #ifndef __vtkSlicerGStreamerLogic_h
 #define __vtkSlicerGStreamerLogic_h
 
 #include "vtkSlicerModuleLogic.h"
 #include "vtkSlicerGStreamerModuleLogicExport.h"
-
-#include <gst/gst.h>
 #include <map>
+#include <string>
+#include "vtkSmartPointer.h"
 
 class vtkMRMLGStreamerStreamerNode;
+class vtkSlicerGStreamerStreamerOut;
+class vtkSlicerGStreamerStreamerIn;
 
 class VTK_SLICER_GSTREAMER_MODULE_LOGIC_EXPORT vtkSlicerGStreamerLogic :
   public vtkSlicerModuleLogic
@@ -28,36 +29,13 @@ protected:
   ~vtkSlicerGStreamerLogic() override;
 
   void SetMRMLSceneInternal(vtkMRMLScene* newScene) override;
-  void OnMRMLSceneNodeAdded(vtkMRMLNode* node) override;
-  void OnMRMLNodeModified(vtkMRMLNode* node) override;
-  void OnMRMLSceneNodeRemoved(vtkMRMLNode* node) override;
 
 private:
   vtkSlicerGStreamerLogic(const vtkSlicerGStreamerLogic&);
   void operator=(const vtkSlicerGStreamerLogic&);
 
-  struct PipelineData
-  {
-    GstElement* Pipeline;
-    GstElement* AppSrc;
-    GstElement* AppSink;
-    std::string NodeID;
-  };
-
-  void PushFrame(vtkMRMLGStreamerStreamerNode* streamerNode, PipelineData& data);
-  static GstFlowReturn OnNewSample(GstElement* sink, gpointer data);
-  
-  // Cross-thread update handling
-  void ProcessPendingFrames();
-  struct ImageDataUpdate {
-    std::string NodeID;
-    std::vector<unsigned char> PixelData;
-    int Width, Height;
-  };
-  std::vector<ImageDataUpdate> PendingUpdates;
-  std::mutex UpdatesMutex;
-
-  std::map<std::string, PipelineData> ActivePipelines;
+  std::map<std::string, vtkSmartPointer<vtkSlicerGStreamerStreamerOut>> StreamersOut;
+  std::map<std::string, vtkSmartPointer<vtkSlicerGStreamerStreamerIn>> StreamersIn;
 };
 
 #endif
