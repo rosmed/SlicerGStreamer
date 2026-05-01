@@ -7,7 +7,18 @@
 #include <gst/app/gstappsrc.h>
 #include <sstream>
 #include <vtkImageData.h>
-#include <vtkMRMLVolumeNode.h> // Common base for video frames in some Slicer versions
+#include <vtkMRMLVolumeNode.h> 
+#include <vtkMRMLAbstractViewNode.h>
+#include <vtkWindowToImageFilter.h>
+#include <vtkRenderWindow.h>
+#include <qSlicerApplication.h>
+#include <qSlicerLayoutManager.h>
+#include <qMRMLSliceWidget.h>
+#include <qMRMLThreeDWidget.h>
+#include <qMRMLSliceView.h>
+#include <qMRMLThreeDView.h>
+#include <vtkRendererCollection.h>
+#include <vtkRenderer.h>
 
 vtkStandardNewMacro(vtkSlicerGStreamerLogic);
 
@@ -43,8 +54,8 @@ bool vtkSlicerGStreamerLogic::StartStreaming(vtkMRMLGStreamerStreamerNode* node)
   this->StopStreaming(node);
 
   std::stringstream ss;
-  // Basic pipeline: appsrc -> videoconvert -> unixfdvidsink
-  ss << "appsrc name=src is-live=true format=time ! videoconvert ! video/x-raw,format=I420 ! unixfdvidsink socket-path=" << node->GetUnixFDPath() << " sync=true";
+  // Basic pipeline: appsrc -> videoconvert -> unixfdsink
+  ss << "appsrc name=src is-live=true format=time ! videoconvert ! video/x-raw,format=I420 ! unixfdsink socket-path=" << node->GetUnixFDPath() << " sync=true";
 
   GError* error = nullptr;
   GstElement* pipeline = gst_parse_launch(ss.str().c_str(), &error);
@@ -119,14 +130,52 @@ void vtkSlicerGStreamerLogic::PushFrame(vtkMRMLGStreamerStreamerNode* streamerNo
   }
 
   vtkMRMLNode* videoNode = this->GetMRMLScene()->GetNodeByID(streamerNode->GetVideoNodeID());
-  // Depending on Slicer version, video might be in vtkMRMLVolumeNode or a specialized class
-  vtkMRMLVolumeNode* volumeNode = vtkMRMLVolumeNode::SafeDownCast(videoNode);
-  if (!volumeNode)
+  if (!videoNode)
   {
     return;
   }
 
-  vtkImageData* imageData = volumeNode->GetImageData();
+  vtkSmartPointer<vtkImageData> imageData;
+
+  // Case 1: Video/Volume Node
+  vtkMRMLVolumeNode* volumeNode = vtkMRMLVolumeNode::SafeDownCast(videoNode);
+  if (volumeNode)
+  {
+    imageData = volumeNode->GetImageData();
+  }
+  // Case 2: View Node (Window capture)
+  else if (videoNode->IsA("vtkMRMLAbstractViewNode"))
+  {
+    qSlicerLayoutManager* layoutManager = qSlicerApplication::application()->layoutManager();
+    if (layoutManager)
+    {
+      QWidget* viewWidget = layoutManager->viewWidget(videoNode);
+      vtkRenderWindow* renderWindow = nullptr;
+      if (viewWidget)
+      {
+        // Slice and 3D view widgets expose typed accessors to their internal VTK views.
+        if (qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget))
+        {
+          renderWindow = sliceWidget->sliceView() ? sliceWidget->sliceView()->renderWindow() : nullptr;
+        }
+        else if (qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget))
+        {
+          renderWindow = threeDWidget->threeDView() ? threeDWidget->threeDView()->renderWindow() : nullptr;
+        }
+      }
+
+      if (renderWindow)
+      {
+        vtkNew<vtkWindowToImageFilter> windowToImageFilter;
+        windowToImageFilter->SetInput(renderWindow);
+        windowToImageFilter->SetInputBufferTypeToRGB();
+        windowToImageFilter->ReadFrontBufferOff();
+        windowToImageFilter->Update();
+        imageData = windowToImageFilter->GetOutput();
+      }
+    }
+  }
+
   if (!imageData)
   {
     return;
@@ -146,8 +195,9 @@ void vtkSlicerGStreamerLogic::PushFrame(vtkMRMLGStreamerStreamerNode* streamerNo
   gst_buffer_unmap(buffer, &map);
 
   // Set caps on appsrc if not set
+  const char* format = (numComponents == 3) ? "RGB" : "RGBA";
   GstCaps* caps = gst_caps_new_simple("video/x-raw",
-    "format", G_TYPE_STRING, "RGB", // Assuming RGB from Slicer
+    "format", G_TYPE_STRING, format,
     "width", G_TYPE_INT, dims[0],
     "height", G_TYPE_INT, dims[1],
     "framerate", GST_TYPE_FRACTION, 30, 1,

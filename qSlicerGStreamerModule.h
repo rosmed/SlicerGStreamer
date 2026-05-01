@@ -27,6 +27,8 @@ public:
 
   QStringList categories() const override { return QStringList() << "GStreamer"; }
 
+  void setMRMLScene(vtkMRMLScene* scene) override;
+
 protected:
   void setup() override;
   qSlicerAbstractModuleRepresentation * createWidgetRepresentation() override;

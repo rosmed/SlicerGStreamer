@@ -4,6 +4,7 @@
 #include "vtkSlicerGStreamerLogic.h"
 #include "vtkMRMLGStreamerStreamerNode.h"
 #include "vtkMRMLScene.h"
+#include <vtkNew.h>
 #include <QTimer>
 
 qSlicerGStreamerModule::qSlicerGStreamerModule(QObject* _parent)
@@ -25,12 +26,9 @@ void qSlicerGStreamerModule::setup()
   this->Superclass::setup();
 
   // Register MRML node
-  vtkMRMLScene* scene = this->mrmlScene();
-  if (scene)
+  if (this->mrmlScene())
   {
-    vtkMRMLGStreamerStreamerNode* node = vtkMRMLGStreamerStreamerNode::New();
-    scene->RegisterNodeClass(node);
-    node->Delete();
+    this->setMRMLScene(this->mrmlScene());
   }
 
   // Set up timer for logic processing
@@ -38,6 +36,16 @@ void qSlicerGStreamerModule::setup()
   this->Timer->setInterval(33); // ~30 FPS
   connect(this->Timer, SIGNAL(timeout()), this, SLOT(onTimerTimeout()));
   this->Timer->start();
+}
+
+void qSlicerGStreamerModule::setMRMLScene(vtkMRMLScene* scene)
+{
+  this->Superclass::setMRMLScene(scene);
+  if (scene)
+  {
+    vtkNew<vtkMRMLGStreamerStreamerNode> node;
+    scene->RegisterNodeClass(node.GetPointer());
+  }
 }
 
 void qSlicerGStreamerModule::onTimerTimeout()

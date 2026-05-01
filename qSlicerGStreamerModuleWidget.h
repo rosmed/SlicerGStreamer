@@ -26,7 +26,7 @@ public slots:
 
 protected slots:
   void updateWidgetFromMRML();
-  void onVideoNodeChanged(vtkMRMLNode* node);
+  void onSourceNodeChanged(vtkMRMLNode* node);
   void onUnixFDPathEdited(const QString& path);
   void onStartStreamingToggled(bool checked);
 

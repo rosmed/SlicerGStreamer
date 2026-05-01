@@ -4,6 +4,7 @@
 #include "vtkSlicerGStreamerLogic.h"
 #include "vtkMRMLGStreamerStreamerNode.h"
 #include "vtkMRMLScene.h"
+#include <QProcessEnvironment>
 
 class qSlicerGStreamerModuleWidgetPrivate : public Ui_qSlicerGStreamerModuleWidget
 {
@@ -33,8 +34,8 @@ void qSlicerGStreamerModuleWidget::setup()
   d->setupUi(this);
   this->Superclass::setup();
 
-  connect(d->videoNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-          this, SLOT(onVideoNodeChanged(vtkMRMLNode*)));
+  connect(d->sourceNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+          this, SLOT(onSourceNodeChanged(vtkMRMLNode*)));
   connect(d->startStreamingButton, SIGNAL(toggled(bool)),
           this, SLOT(onStartStreamingToggled(bool)));
   connect(d->unixfdPathLineEdit, SIGNAL(textEdited(const QString&)),
@@ -45,6 +46,11 @@ void qSlicerGStreamerModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {
   Q_D(qSlicerGStreamerModuleWidget);
   this->Superclass::setMRMLScene(scene);
+
+  if (d->sourceNodeSelector)
+  {
+    d->sourceNodeSelector->setMRMLScene(scene);
+  }
 
   if (scene)
   {
@@ -67,12 +73,12 @@ void qSlicerGStreamerModuleWidget::updateWidgetFromMRML()
     return;
   }
 
-  d->videoNodeSelector->setCurrentNode(d->StreamerNode->GetVideoNodeID());
+  d->sourceNodeSelector->setCurrentNodeID(d->StreamerNode->GetVideoNodeID());
   d->unixfdPathLineEdit->setText(d->StreamerNode->GetUnixFDPath() ? d->StreamerNode->GetUnixFDPath() : "");
   d->startStreamingButton->setChecked(d->StreamerNode->GetEnabled());
 }
 
-void qSlicerGStreamerModuleWidget::onVideoNodeChanged(vtkMRMLNode* node)
+void qSlicerGStreamerModuleWidget::onSourceNodeChanged(vtkMRMLNode* node)
 {
   Q_D(qSlicerGStreamerModuleWidget);
   if (!d->StreamerNode || !node)
@@ -85,7 +91,8 @@ void qSlicerGStreamerModuleWidget::onVideoNodeChanged(vtkMRMLNode* node)
   // Auto-generate path if empty
   if (QString(d->StreamerNode->GetUnixFDPath()).isEmpty())
   {
-    QString path = QString("/tmp/slicer_%1").arg(node->GetName());
+    QString userId = QProcessEnvironment::systemEnvironment().value("USER", "default");
+    QString path = QString("/tmp/slicer_gstreamer_%1_%2.sock").arg(node->GetName()).arg(userId);
     d->StreamerNode->SetUnixFDPath(path.toUtf8().constData());
     d->unixfdPathLineEdit->setText(path);
   }
