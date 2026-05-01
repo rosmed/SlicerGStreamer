@@ -15,6 +15,43 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
+    <widget class="ctkCollapsibleButton" name="streamerNodeCollapsibleButton">
+     <property name="text">
+      <string>Parameters</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_3">
+      <item row="0" column="0">
+       <widget class="QLabel" name="streamerNodeLabel">
+        <property name="text">
+         <string>Current Streamer:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="qMRMLNodeComboBox" name="streamerNodeSelector">
+        <property name="nodeTypes">
+         <stringlist>
+          <string>vtkMRMLGStreamerStreamerNode</string>
+         </stringlist>
+        </property>
+        <property name="addEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="removeEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="noneEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="renameEnabled">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="ctkCollapsibleButton" name="streamOutCollapsibleButton">
      <property name="text">
       <string>Stream Out</string>
@@ -64,6 +101,63 @@
        <widget class="QPushButton" name="startStreamingButton">
         <property name="text">
          <string>Start Streaming</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="ctkCollapsibleButton" name="streamInCollapsibleButton">
+     <property name="text">
+      <string>Stream In</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_2">
+      <item row="0" column="0">
+       <widget class="QLabel" name="sinkLabel">
+        <property name="text">
+         <string>Sink Volume:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="qMRMLNodeComboBox" name="sinkNodeSelector">
+        <property name="nodeTypes">
+         <stringlist>
+          <string>vtkMRMLStreamingVolumeNode</string>
+         </stringlist>
+        </property>
+        <property name="showHidden">
+         <bool>false</bool>
+        </property>
+        <property name="noneEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="addEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="removeEnabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="unixfdInPathLabel">
+        <property name="text">
+         <string>Unix FD Path:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="unixfdInPathLineEdit"/>
+      </item>
+      <item row="2" column="1">
+       <widget class="QPushButton" name="startStreamingInButton">
+        <property name="text">
+         <string>Start Receiving</string>
         </property>
         <property name="checkable">
          <bool>true</bool>

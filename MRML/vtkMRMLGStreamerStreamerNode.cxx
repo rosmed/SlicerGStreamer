@@ -9,6 +9,7 @@ vtkMRMLGStreamerStreamerNode::vtkMRMLGStreamerStreamerNode()
   this->UnixFDPath = nullptr;
   this->VideoNodeID = nullptr;
   this->Enabled = false;
+  this->StreamIn = false;
 }
 
 vtkMRMLGStreamerStreamerNode::~vtkMRMLGStreamerStreamerNode()
@@ -23,6 +24,7 @@ void vtkMRMLGStreamerStreamerNode::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "UnixFDPath: " << (this->UnixFDPath ? this->UnixFDPath : "(none)") << "\n";
   os << indent << "VideoNodeID: " << (this->VideoNodeID ? this->VideoNodeID : "(none)") << "\n";
   os << indent << "Enabled: " << (this->Enabled ? "true" : "false") << "\n";
+  os << indent << "StreamIn: " << (this->StreamIn ? "true" : "false") << "\n";
 }
 
 vtkMRMLNode* vtkMRMLGStreamerStreamerNode::CreateNodeInstance()

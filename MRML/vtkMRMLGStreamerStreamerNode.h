@@ -24,6 +24,9 @@ public:
   vtkGetMacro(Enabled, bool);
   vtkSetMacro(Enabled, bool);
 
+  vtkGetMacro(StreamIn, bool);
+  vtkSetMacro(StreamIn, bool);
+
 protected:
   vtkMRMLGStreamerStreamerNode();
   ~vtkMRMLGStreamerStreamerNode();
@@ -33,6 +36,7 @@ protected:
   char* UnixFDPath;
   char* VideoNodeID;
   bool Enabled;
+  bool StreamIn;
 };
 
 #endif

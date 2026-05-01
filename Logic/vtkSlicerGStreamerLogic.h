@@ -40,9 +40,22 @@ private:
   {
     GstElement* Pipeline;
     GstElement* AppSrc;
+    GstElement* AppSink;
+    std::string NodeID;
   };
 
   void PushFrame(vtkMRMLGStreamerStreamerNode* streamerNode, PipelineData& data);
+  static GstFlowReturn OnNewSample(GstElement* sink, gpointer data);
+  
+  // Cross-thread update handling
+  void ProcessPendingFrames();
+  struct ImageDataUpdate {
+    std::string NodeID;
+    std::vector<unsigned char> PixelData;
+    int Width, Height;
+  };
+  std::vector<ImageDataUpdate> PendingUpdates;
+  std::mutex UpdatesMutex;
 
   std::map<std::string, PipelineData> ActivePipelines;
 };

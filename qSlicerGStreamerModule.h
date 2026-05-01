@@ -22,8 +22,8 @@ public:
   qSlicerGetTitleMacro("GStreamer");
 
   QString helpText() const override { return "This module allows streaming images to/from GStreamer."; }
-  QString acknowledgementText() const override { return "Developed by GitHub Copilot."; }
-  QStringList contributors() const override { return QStringList() << "GitHub Copilot"; }
+  QString acknowledgementText() const override { return "Developed by Anton Deguet."; }
+  QStringList contributors() const override { return QStringList() << "Anton Deguet"; }
 
   QStringList categories() const override { return QStringList() << "GStreamer"; }
 

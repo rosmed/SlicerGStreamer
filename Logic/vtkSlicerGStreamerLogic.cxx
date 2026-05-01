@@ -5,11 +5,14 @@
 #include "vtkObjectFactory.h"
 
 #include <gst/app/gstappsrc.h>
+#include <gst/app/gstappsink.h>
 #include <sstream>
+#include <cstdio>
 #include <vtkImageData.h>
 #include <vtkMRMLVolumeNode.h> 
 #include <vtkMRMLAbstractViewNode.h>
 #include <vtkWindowToImageFilter.h>
+#include <vtkImageFlip.h>
 #include <vtkRenderWindow.h>
 #include <qSlicerApplication.h>
 #include <qSlicerLayoutManager.h>
@@ -19,6 +22,8 @@
 #include <qMRMLThreeDView.h>
 #include <vtkRendererCollection.h>
 #include <vtkRenderer.h>
+#include <vtkMRMLStreamingVolumeNode.h>
+#include <mutex>
 
 vtkStandardNewMacro(vtkSlicerGStreamerLogic);
 
@@ -53,9 +58,24 @@ bool vtkSlicerGStreamerLogic::StartStreaming(vtkMRMLGStreamerStreamerNode* node)
 
   this->StopStreaming(node);
 
+  if (!node->GetStreamIn())
+  {
+    // For Stream Out, remove stale socket file if it exists to prevent unixfdsink errors
+    std::remove(node->GetUnixFDPath());
+  }
+
   std::stringstream ss;
-  // Basic pipeline: appsrc -> videoconvert -> unixfdsink
-  ss << "appsrc name=src is-live=true format=time ! videoconvert ! video/x-raw,format=I420 ! unixfdsink socket-path=" << node->GetUnixFDPath() << " sync=true";
+  if (node->GetStreamIn())
+  {
+    // Stream IN: decode -> queue (leaky) -> appsink
+    ss << "unixfdsrc socket-path=" << node->GetUnixFDPath() << " ! decodebin ! videoconvert ! video/x-raw,format=RGB ! queue max-size-buffers=1 leaky=downstream ! appsink name=sink emit-signals=true sync=false";
+  }
+  else
+  {
+    // Stream OUT: appsrc -> raw video -> unixfdsink
+    // We use RGB/RGBA formats directly from VTK to avoid videoconvert issues before the socket.
+    ss << "appsrc name=src is-live=true format=time ! videoflip method=vertical-flip ! videoconvert ! video/x-raw,format=I420 ! unixfdsink socket-path=" << node->GetUnixFDPath() << " sync=true";
+  }
 
   GError* error = nullptr;
   GstElement* pipeline = gst_parse_launch(ss.str().c_str(), &error);
@@ -67,17 +87,114 @@ bool vtkSlicerGStreamerLogic::StartStreaming(vtkMRMLGStreamerStreamerNode* node)
     return false;
   }
 
-  GstElement* appsrc = gst_bin_get_by_name(GST_BIN(pipeline), "src");
-  
   PipelineData data;
   data.Pipeline = pipeline;
-  data.AppSrc = appsrc;
+  data.NodeID = node->GetID();
+  data.AppSrc = nullptr;
+  data.AppSink = nullptr;
+
+  if (node->GetStreamIn())
+  {
+    data.AppSink = gst_bin_get_by_name(GST_BIN(pipeline), "sink");
+    data.AppSrc = nullptr;
+    g_signal_connect(data.AppSink, "new-sample", G_CALLBACK(vtkSlicerGStreamerLogic::OnNewSample), this);
+  }
+  else
+  {
+    data.AppSrc = gst_bin_get_by_name(GST_BIN(pipeline), "src");
+    data.AppSink = nullptr;
+  }
 
   this->ActivePipelines[node->GetID()] = data;
 
   gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
   return true;
+}
+
+GstFlowReturn vtkSlicerGStreamerLogic::OnNewSample(GstElement* sink, gpointer data)
+{
+  vtkSlicerGStreamerLogic* self = static_cast<vtkSlicerGStreamerLogic*>(data);
+  GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
+  if (!sample) return GST_FLOW_OK;
+
+  GstBuffer* buffer = gst_sample_get_buffer(sample);
+  GstCaps* caps = gst_sample_get_caps(sample);
+  GstStructure* s = gst_caps_get_structure(caps, 0);
+
+  int width, height;
+  gst_structure_get_int(s, "width", &width);
+  gst_structure_get_int(s, "height", &height);
+
+  GstMapInfo map;
+  gst_buffer_map(buffer, &map, GST_MAP_READ);
+
+  // Buffer sample data to be processed in the main thread (ProcessMRMLNodes/ProcessPendingFrames)
+  ImageDataUpdate update;
+  update.Width = width;
+  update.Height = height;
+  update.PixelData.assign(map.data, map.data + map.size);
+
+  // Find the node ID associated with this sink
+  {
+    std::lock_guard<std::mutex> lock(self->UpdatesMutex);
+    for (auto const& [id, pdata] : self->ActivePipelines)
+    {
+      if (pdata.AppSink == sink)
+      {
+        vtkMRMLGStreamerStreamerNode* sNode = vtkMRMLGStreamerStreamerNode::SafeDownCast(self->GetMRMLScene()->GetNodeByID(pdata.NodeID));
+        if (sNode && sNode->GetVideoNodeID())
+        {
+          update.NodeID = sNode->GetVideoNodeID();
+          // Keep only the latest frame if multiple arrive before the next main loop pull
+          bool found = false;
+          for (auto& pending : self->PendingUpdates) {
+             if (pending.NodeID == update.NodeID) {
+                 pending = update;
+                 found = true;
+                 break;
+             }
+          }
+          if (!found) self->PendingUpdates.push_back(update);
+        }
+        break;
+      }
+    }
+  }
+
+  gst_buffer_unmap(buffer, &map);
+  gst_sample_unref(sample);
+  return GST_FLOW_OK;
+}
+
+void vtkSlicerGStreamerLogic::ProcessPendingFrames()
+{
+  std::vector<ImageDataUpdate> localUpdates;
+  {
+    std::lock_guard<std::mutex> lock(this->UpdatesMutex);
+    localUpdates = std::move(this->PendingUpdates);
+    this->PendingUpdates.clear();
+  }
+
+  for (const auto& update : localUpdates)
+  {
+    vtkMRMLStreamingVolumeNode* volumeNode = vtkMRMLStreamingVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(update.NodeID));
+    if (!volumeNode) continue;
+
+    vtkImageData* imageData = volumeNode->GetImageData();
+    if (!imageData || imageData->GetDimensions()[0] != update.Width || imageData->GetDimensions()[1] != update.Height)
+    {
+      vtkNew<vtkImageData> newImageData;
+      newImageData->SetDimensions(update.Width, update.Height, 1);
+      newImageData->AllocateScalars(VTK_UNSIGNED_CHAR, 3);
+      volumeNode->SetAndObserveImageData(newImageData);
+      imageData = volumeNode->GetImageData();
+    }
+    
+    memcpy(imageData->GetScalarPointer(), update.PixelData.data(), update.PixelData.size());
+    imageData->Modified();
+    volumeNode->Modified();
+  }
 }
 
 void vtkSlicerGStreamerLogic::StopStreaming(vtkMRMLGStreamerStreamerNode* node)
@@ -98,6 +215,8 @@ void vtkSlicerGStreamerLogic::StopStreaming(vtkMRMLGStreamerStreamerNode* node)
 
 void vtkSlicerGStreamerLogic::ProcessMRMLNodes()
 {
+  this->ProcessPendingFrames();
+
   if (!this->GetMRMLScene())
   {
     return;
@@ -117,7 +236,10 @@ void vtkSlicerGStreamerLogic::ProcessMRMLNodes()
     auto it = this->ActivePipelines.find(streamerNode->GetID());
     if (it != this->ActivePipelines.end())
     {
-      this->PushFrame(streamerNode, it->second);
+      if (!streamerNode->GetStreamIn() && it->second.AppSrc)
+      {
+        this->PushFrame(streamerNode, it->second);
+      }
     }
   }
 }

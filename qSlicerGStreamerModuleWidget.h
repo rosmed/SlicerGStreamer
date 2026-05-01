@@ -26,9 +26,15 @@ public slots:
 
 protected slots:
   void updateWidgetFromMRML();
+  void onStreamerNodeChanged(vtkMRMLNode* node);
+  
   void onSourceNodeChanged(vtkMRMLNode* node);
   void onUnixFDPathEdited(const QString& path);
   void onStartStreamingToggled(bool checked);
+
+  void onSinkNodeChanged(vtkMRMLNode* node);
+  void onUnixFDInPathEdited(const QString& path);
+  void onStartStreamingInToggled(bool checked);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerGStreamerModuleWidget);
