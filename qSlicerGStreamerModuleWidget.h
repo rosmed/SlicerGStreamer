@@ -31,10 +31,12 @@ protected slots:
   
   void onSourceNodeChanged(vtkMRMLNode* node);
   void onUnixFDPathEdited(const QString& path);
+  void onProtocolOutChanged(int index);
   void onStartStreamingToggled(bool checked);
 
   void onSinkNodeChanged(vtkMRMLNode* node);
   void onUnixFDInPathEdited(const QString& path);
+  void onProtocolInChanged(int index);
   void onStartStreamingInToggled(bool checked);
 
   void onNameOutEdited(const QString& name);

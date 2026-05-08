@@ -21,9 +21,15 @@ bool vtkSlicerGStreamerStreamerIn::Start(vtkMRMLGStreamerStreamerNode* node)
   if (!node || !node->GetUnixFDPath()) return false;
   this->Stop();
   this->StreamerNodeID = node->GetID();
-
   std::stringstream ss;
-  ss << "unixfdsrc socket-path=" << node->GetUnixFDPath() << " ! decodebin ! videoconvert ! video/x-raw,format=RGB ! appsink name=sink emit-signals=true sync=false";
+  if (node->GetStreamType() == vtkMRMLGStreamerStreamerNode::TYPE_RTSP)
+  {
+    ss << "rtspsrc location=rtsp://127.0.0.1:" << node->GetUnixFDPath() << "/stream latency=0 ! rtph264depay ! decodebin ! videoconvert ! video/x-raw,format=RGB ! appsink name=sink emit-signals=true sync=false";
+  }
+  else
+  {
+    ss << "unixfdsrc socket-path=" << node->GetUnixFDPath() << " ! decodebin ! videoconvert ! video/x-raw,format=RGB ! appsink name=sink emit-signals=true sync=false";
+  }
 
   GError* error = nullptr;
   this->Pipeline = gst_parse_launch(ss.str().c_str(), &error);

@@ -10,10 +10,14 @@ class VTK_SLICER_GSTREAMER_MODULE_MRML_EXPORT vtkMRMLGStreamerStreamerNode : pub
 public:
   static vtkMRMLGStreamerStreamerNode *New();
   vtkTypeMacro(vtkMRMLGStreamerStreamerNode, vtkMRMLNode);
-  void PrintSelf(ostream& os, vtkIndent indent) override;
+  void PrintSelf(std::ostream& os, vtkIndent indent) override;
 
   virtual vtkMRMLNode* CreateNodeInstance() override;
   virtual const char* GetNodeTagName() override { return "GStreamerStreamer"; };
+
+  void ReadXMLAttributes(const char** atts) override;
+  void WriteXML(std::ostream& of, int indent) override;
+  void Copy(vtkMRMLNode *node) override;
 
   vtkGetStringMacro(UnixFDPath);
   vtkSetStringMacro(UnixFDPath);
@@ -25,7 +29,14 @@ public:
   vtkSetMacro(Enabled, bool);
 
   vtkGetMacro(StreamIn, bool);
-  vtkSetMacro(StreamIn, bool);
+  void SetStreamIn(bool in);
+
+  enum {
+    TYPE_UNIX_FD = 0,
+    TYPE_RTSP = 1
+  };
+  vtkGetMacro(StreamType, int);
+  vtkSetMacro(StreamType, int);
 
 protected:
   vtkMRMLGStreamerStreamerNode();
@@ -37,6 +48,7 @@ protected:
   char* VideoNodeID;
   bool Enabled;
   bool StreamIn;
+  int StreamType;
 };
 
 #endif

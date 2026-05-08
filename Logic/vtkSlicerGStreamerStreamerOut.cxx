@@ -79,10 +79,44 @@ bool vtkSlicerGStreamerStreamerOut::Start(vtkMRMLGStreamerStreamerNode* node)
   if (!node || !node->GetUnixFDPath()) return false;
   this->Stop();
   this->StreamerNodeID = node->GetID();
-
-  std::remove(node->GetUnixFDPath());
   std::stringstream ss;
-  ss << "appsrc name=src is-live=true format=time ! videoconvert ! video/x-raw,format=I420 ! queue max-size-buffers=1 leaky=downstream ! unixfdsink socket-path=" << node->GetUnixFDPath() << " sync=false";
+  QString pathStr = node->GetUnixFDPath();
+  QStringList destinations = pathStr.split(",", Qt::SkipEmptyParts);
+
+  if (node->GetStreamType() == vtkMRMLGStreamerStreamerNode::TYPE_RTSP)
+  {
+    ss << "appsrc name=src is-live=true format=time ! videoconvert ! x264enc tune=zerolatency bitrate=5000 speed-preset=ultrafast ! rtph264pay config-interval=1 name=pay";
+    if (destinations.size() > 1)
+    {
+      ss << " ! tee name=t";
+      for (const QString& dest : destinations)
+      {
+        ss << " t. ! queue ! rtspclientsink location=rtsp://127.0.0.1:" << dest.trimmed().toUtf8().constData() << "/stream";
+      }
+    }
+    else
+    {
+      ss << " ! rtspclientsink location=rtsp://127.0.0.1:" << pathStr.toUtf8().constData() << "/stream";
+    }
+  }
+  else
+  {
+    ss << "appsrc name=src is-live=true format=time ! videoconvert ! video/x-raw,format=I420 ! queue max-size-buffers=1 leaky=downstream";
+    if (destinations.size() > 1)
+    {
+      ss << " ! tee name=t";
+      for (const QString& dest : destinations)
+      {
+        std::remove(dest.trimmed().toUtf8().constData());
+        ss << " t. ! queue ! unixfdsink socket-path=" << dest.trimmed().toUtf8().constData() << " sync=false";
+      }
+    }
+    else
+    {
+      std::remove(node->GetUnixFDPath());
+      ss << " ! unixfdsink socket-path=" << node->GetUnixFDPath() << " sync=false";
+    }
+  }
 
   GError* error = nullptr;
   this->Pipeline = gst_parse_launch(ss.str().c_str(), &error);
