@@ -186,6 +186,10 @@ void vtkSlicerGStreamerStreamerOut::PushFrame()
           wif->Modified();
           wif->Update();
           imageData = wif->GetOutput();
+          if (IsLikelyBlankRgbFrame(imageData))
+          {
+            return;
+          }
         }
       }
     }
@@ -194,7 +198,7 @@ void vtkSlicerGStreamerStreamerOut::PushFrame()
   if (!imageData) return;
   int dims[3]; imageData->GetDimensions(dims);
   int nc = imageData->GetNumberOfScalarComponents();
-  const int outW = (dims[0] / 2) * 2;
+  const int outW = (dims[0] / 4) * 4; // Multiples of 4 guarantee 4-byte row alignment for RGB (3 bpp)
   const int outH = (dims[1] / 2) * 2;
   if (outW <= 0 || outH <= 0 || nc < 3)
   {
