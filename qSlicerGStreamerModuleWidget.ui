@@ -134,11 +134,8 @@
         </item>
         <item row="3" column="1">
          <widget class="ctkPathLineEdit" name="unixfdPathLineEdit">
-          <property name="nameFilters">
-           <stringlist>
-            <string>Socket files (*.sock)</string>
-            <string>All files (*)</string>
-           </stringlist>
+          <property name="toolTip">
+           <string>Filesystem path, or prefix with '@' for a Linux abstract-namespace socket (e.g. @slicer_gstreamer_View1)</string>
           </property>
          </widget>
         </item>
@@ -290,11 +287,8 @@
         </item>
         <item row="3" column="1">
          <widget class="ctkPathLineEdit" name="unixfdInPathLineEdit">
-          <property name="nameFilters">
-           <stringlist>
-            <string>Socket files (*.sock)</string>
-            <string>All files (*)</string>
-           </stringlist>
+          <property name="toolTip">
+           <string>Filesystem path, or prefix with '@' for a Linux abstract-namespace socket (e.g. @slicer_gstreamer_in_View1)</string>
           </property>
          </widget>
         </item>

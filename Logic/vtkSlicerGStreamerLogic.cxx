@@ -26,8 +26,9 @@ void vtkSlicerGStreamerLogic::PrintSelf(ostream& os, vtkIndent indent)
 
 bool vtkSlicerGStreamerLogic::StartStreaming(vtkMRMLGStreamerStreamerNode* node)
 {
-  if (!node || !node->GetID() || !node->GetUnixFDPath())
+  if (!node || !node->GetID() || !node->GetUnixFDPath() || node->GetUnixFDPath()[0] == '\0')
   {
+    vtkErrorMacro("Cannot start streaming: node is null, not in the scene, or has no socket path/port set");
     return false;
   }
 

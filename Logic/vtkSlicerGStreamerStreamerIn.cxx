@@ -7,6 +7,48 @@
 #include "vtkObjectFactory.h"
 #include <gst/app/gstappsink.h>
 #include <sstream>
+#include <string>
+
+namespace
+{
+// A socket path prefixed with '@' selects a Linux abstract-namespace unix socket
+// (no filesystem entry) instead of a path-based one.
+std::string UnixFdSocketPathClause(const std::string& rawPath)
+{
+  if (!rawPath.empty() && rawPath[0] == '@')
+  {
+    return "socket-path=" + rawPath.substr(1) + " socket-type=abstract";
+  }
+  return "socket-path=" + rawPath;
+}
+
+// Pulls the first pending ERROR message (if any) off the pipeline's bus and
+// describes it, for logging when a synchronous state change fails.
+std::string DescribeBusError(GstElement* pipeline)
+{
+  GstBus* bus = gst_element_get_bus(pipeline);
+  GstMessage* msg = gst_bus_timed_pop_filtered(bus, 0, GST_MESSAGE_ERROR);
+  gst_object_unref(bus);
+  if (!msg)
+  {
+    return "no error message available on bus";
+  }
+  GError* error = nullptr;
+  gchar* debugInfo = nullptr;
+  gst_message_parse_error(msg, &error, &debugInfo);
+  std::string description = error ? error->message : "unknown error";
+  if (debugInfo)
+  {
+    description += " (";
+    description += debugInfo;
+    description += ")";
+  }
+  if (error) g_error_free(error);
+  if (debugInfo) g_free(debugInfo);
+  gst_message_unref(msg);
+  return description;
+}
+}
 
 vtkStandardNewMacro(vtkSlicerGStreamerStreamerIn);
 
@@ -18,7 +60,11 @@ void vtkSlicerGStreamerStreamerIn::SetMRMLScene(vtkMRMLScene* scene) { this->MRM
 
 bool vtkSlicerGStreamerStreamerIn::Start(vtkMRMLGStreamerStreamerNode* node)
 {
-  if (!node || !node->GetUnixFDPath()) return false;
+  if (!node || !node->GetUnixFDPath())
+  {
+    vtkErrorMacro("Cannot start streamer: node is null or has no socket path set");
+    return false;
+  }
   this->Stop();
   this->StreamerNodeID = node->GetID();
   std::stringstream ss;
@@ -28,16 +74,31 @@ bool vtkSlicerGStreamerStreamerIn::Start(vtkMRMLGStreamerStreamerNode* node)
   }
   else
   {
-    ss << "unixfdsrc socket-path=" << node->GetUnixFDPath() << " ! decodebin ! videoconvert ! video/x-raw,format=RGB ! appsink name=sink emit-signals=true sync=false";
+    ss << "unixfdsrc " << UnixFdSocketPathClause(node->GetUnixFDPath()) << " ! decodebin ! videoconvert ! video/x-raw,format=RGB ! appsink name=sink emit-signals=true sync=false";
   }
+
+  vtkWarningMacro("Starting GStreamer In pipeline: " << ss.str());
 
   GError* error = nullptr;
   this->Pipeline = gst_parse_launch(ss.str().c_str(), &error);
-  if (error) { g_error_free(error); return false; }
+  if (error)
+  {
+    vtkErrorMacro("Failed to parse GStreamer pipeline: " << error->message << " (pipeline: " << ss.str() << ")");
+    g_error_free(error);
+    this->Pipeline = nullptr;
+    return false;
+  }
 
   this->AppSink = gst_bin_get_by_name(GST_BIN(this->Pipeline), "sink");
   g_signal_connect(this->AppSink, "new-sample", G_CALLBACK(OnNewSample), this);
-  gst_element_set_state(this->Pipeline, GST_STATE_PLAYING);
+
+  GstStateChangeReturn stateResult = gst_element_set_state(this->Pipeline, GST_STATE_PLAYING);
+  if (stateResult == GST_STATE_CHANGE_FAILURE)
+  {
+    vtkErrorMacro("GStreamer pipeline failed to reach PLAYING state: " << DescribeBusError(this->Pipeline));
+    this->Stop();
+    return false;
+  }
   return true;
 }
 

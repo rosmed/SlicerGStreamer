@@ -16,10 +16,54 @@
 #include "qMRMLThreeDView.h"
 #include <gst/app/gstappsrc.h>
 #include <sstream>
+#include <string>
 #include <vector>
 
 namespace
 {
+// A socket path prefixed with '@' selects a Linux abstract-namespace unix socket
+// (no filesystem entry) instead of a path-based one.
+bool IsAbstractSocketPath(const QString& rawPath)
+{
+  return rawPath.startsWith('@');
+}
+
+QByteArray UnixFdSocketPathClause(const QString& rawPath)
+{
+  if (IsAbstractSocketPath(rawPath))
+  {
+    return "socket-path=" + rawPath.mid(1).toUtf8() + " socket-type=abstract";
+  }
+  return "socket-path=" + rawPath.toUtf8();
+}
+
+// Pulls the first pending ERROR message (if any) off the pipeline's bus and
+// describes it, for logging when a synchronous state change fails.
+std::string DescribeBusError(GstElement* pipeline)
+{
+  GstBus* bus = gst_element_get_bus(pipeline);
+  GstMessage* msg = gst_bus_timed_pop_filtered(bus, 0, GST_MESSAGE_ERROR);
+  gst_object_unref(bus);
+  if (!msg)
+  {
+    return "no error message available on bus";
+  }
+  GError* error = nullptr;
+  gchar* debugInfo = nullptr;
+  gst_message_parse_error(msg, &error, &debugInfo);
+  std::string description = error ? error->message : "unknown error";
+  if (debugInfo)
+  {
+    description += " (";
+    description += debugInfo;
+    description += ")";
+  }
+  if (error) g_error_free(error);
+  if (debugInfo) g_free(debugInfo);
+  gst_message_unref(msg);
+  return description;
+}
+
 bool IsLikelyBlankRgbFrame(vtkImageData* imageData)
 {
   if (!imageData || imageData->GetScalarType() != VTK_UNSIGNED_CHAR)
@@ -76,7 +120,11 @@ void vtkSlicerGStreamerStreamerOut::SetMRMLScene(vtkMRMLScene* scene) { this->MR
 
 bool vtkSlicerGStreamerStreamerOut::Start(vtkMRMLGStreamerStreamerNode* node)
 {
-  if (!node || !node->GetUnixFDPath()) return false;
+  if (!node || !node->GetUnixFDPath())
+  {
+    vtkErrorMacro("Cannot start streamer: node is null or has no socket path set");
+    return false;
+  }
   this->Stop();
   this->StreamerNodeID = node->GetID();
   std::stringstream ss;
@@ -107,20 +155,36 @@ bool vtkSlicerGStreamerStreamerOut::Start(vtkMRMLGStreamerStreamerNode* node)
       ss << " ! tee name=t";
       for (const QString& dest : destinations)
       {
-        std::remove(dest.trimmed().toUtf8().constData());
-        ss << " t. ! queue ! unixfdsink socket-path=" << dest.trimmed().toUtf8().constData() << " sync=false";
+        QString trimmedDest = dest.trimmed();
+        if (!IsAbstractSocketPath(trimmedDest))
+        {
+          std::remove(trimmedDest.toUtf8().constData());
+        }
+        ss << " t. ! queue ! unixfdsink " << UnixFdSocketPathClause(trimmedDest).constData() << " sync=false";
       }
     }
     else
     {
-      std::remove(node->GetUnixFDPath());
-      ss << " ! unixfdsink socket-path=" << node->GetUnixFDPath() << " sync=false";
+      QString trimmedPath = pathStr.trimmed();
+      if (!IsAbstractSocketPath(trimmedPath))
+      {
+        std::remove(node->GetUnixFDPath());
+      }
+      ss << " ! unixfdsink " << UnixFdSocketPathClause(trimmedPath).constData() << " sync=false";
     }
   }
 
+  vtkWarningMacro("Starting GStreamer Out pipeline: " << ss.str());
+
   GError* error = nullptr;
   this->Pipeline = gst_parse_launch(ss.str().c_str(), &error);
-  if (error) { g_error_free(error); return false; }
+  if (error)
+  {
+    vtkErrorMacro("Failed to parse GStreamer pipeline: " << error->message << " (pipeline: " << ss.str() << ")");
+    g_error_free(error);
+    this->Pipeline = nullptr;
+    return false;
+  }
 
   this->AppSrc = gst_bin_get_by_name(GST_BIN(this->Pipeline), "src");
   if (this->AppSrc)
@@ -132,7 +196,14 @@ bool vtkSlicerGStreamerStreamerOut::Start(vtkMRMLGStreamerStreamerNode* node)
       "format", GST_FORMAT_TIME,
       nullptr);
   }
-  gst_element_set_state(this->Pipeline, GST_STATE_PLAYING);
+
+  GstStateChangeReturn stateResult = gst_element_set_state(this->Pipeline, GST_STATE_PLAYING);
+  if (stateResult == GST_STATE_CHANGE_FAILURE)
+  {
+    vtkErrorMacro("GStreamer pipeline failed to reach PLAYING state: " << DescribeBusError(this->Pipeline));
+    this->Stop();
+    return false;
+  }
   return true;
 }
 

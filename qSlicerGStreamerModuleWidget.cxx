@@ -409,13 +409,19 @@ void qSlicerGStreamerModuleWidget::onStartStreamingToggled(bool checked)
     return;
   }
 
-  d->StreamerNode->SetEnabled(checked);
   if (checked)
   {
-    logic->StartStreaming(d->StreamerNode);
+    bool started = logic->StartStreaming(d->StreamerNode);
+    d->StreamerNode->SetEnabled(started);
+    if (!started)
+    {
+      QMessageBox::warning(this, "Start Streaming Failed",
+        "The GStreamer pipeline failed to start. Check the application error log for details.");
+    }
   }
   else
   {
+    d->StreamerNode->SetEnabled(false);
     logic->StopStreaming(d->StreamerNode);
   }
   this->updateWidgetFromMRML();
@@ -480,13 +486,19 @@ void qSlicerGStreamerModuleWidget::onStartStreamingInToggled(bool checked)
     return;
   }
 
-  d->StreamerInNode->SetEnabled(checked);
   if (checked)
   {
-    logic->StartStreaming(d->StreamerInNode);
+    bool started = logic->StartStreaming(d->StreamerInNode);
+    d->StreamerInNode->SetEnabled(started);
+    if (!started)
+    {
+      QMessageBox::warning(this, "Start Receiving Failed",
+        "The GStreamer pipeline failed to start. Check the application error log for details.");
+    }
   }
   else
   {
+    d->StreamerInNode->SetEnabled(false);
     logic->StopStreaming(d->StreamerInNode);
   }
   this->updateWidgetFromMRML();
